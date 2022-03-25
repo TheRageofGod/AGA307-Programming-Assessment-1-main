@@ -9,45 +9,31 @@ public enum Size
 public class TargetManager : Singleton<TargetManager>
 {
     float moveDistance = 500f;
-    public Size size;
     public float speed;
+    Transform startPos;
+    Transform endPos;
+    public Transform moveToPos;
+    public Transform[] spawnPoints;
+    public List<GameObject> enemies;
+    public GameObject[] enemyTypes;
 
-    // Start is called before the first frame update
     void Start()
     {
-        SetUp();
+       
         StartCoroutine(moveRandom());
+        SetUpAI();
+        SpawnEnemy();
+        StartCoroutine(EnemyDelaySpawn());
+        StartCoroutine(EnemyDelaySpawn());
     }
-        
-    
-   void SetUp()
-   {
-        float easy = 2;
-        float medium = 1;
-        float hard = 0.5f;
-            switch (size)
-            {
-                case Size.SMALL:
-                    transform.localScale = Vector3.one * hard;
-                GetComponent<Renderer>().material.color = Color.red;
-                speed = 0.0075f;
-                break;
-                case Size.MEDIUM:
-                transform.localScale = Vector3.one * medium;
-                GetComponent<Renderer>().material.color = Color.yellow;
-                speed = 0.005f;
-                break;
-                case Size.LARGE:
-                transform.localScale = Vector3.one * easy;
-                GetComponent<Renderer>().material.color = Color.green;
-                speed = 0.0025f;
-                break;
-            default:
-                transform.localScale = Vector3.one * easy;
-                break;
 
-            }
-   }
+    void SetUpAI()
+    {
+        startPos = transform;
+        endPos = _EM.GetRandomSpawnPoint();
+        moveToPos = endPos;
+    }
+
     IEnumerator moveRandom()
     {
         Vector3 direction = new Vector3();
@@ -75,5 +61,70 @@ public class TargetManager : Singleton<TargetManager>
 
         StartCoroutine(moveRandom());
     }
+    void OnEnemyDied(Target _enemy)
+    {
+        EnemyDestroy(_enemy.gameObject);
+    }
+    void SpawnEnemy()
+    {
+        int sp = Random.Range(0, spawnPoints.Length);
 
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            int rnd = Random.Range(0, enemyTypes.Length);
+            GameObject go = Instantiate(enemyTypes[rnd], spawnPoints[sp].position, spawnPoints[sp].rotation);
+            enemies.Add(go);
+        }
+
+    }
+
+    void EnemyDestroy(GameObject _enemy)
+    {
+        if (enemies.Count == 0)
+            return;
+        Destroy(_enemy);
+        enemies.Remove(_enemy);
+        GameEvents.ReportListChange(enemies.Count);
+
+    }
+
+    public Transform GetRandomSpawnPoint()
+    {
+        return spawnPoints[Random.Range(0, spawnPoints.Length)];
+    }
+    private void OnEnable()
+    {
+        GameEvents.OnEnemyDied += OnEnemyDied;
+        GameEvents.OnGameStateChange += OnGameStateChange;
+        
+    }
+    private void OnDisable()
+    {
+        GameEvents.OnEnemyDied -= OnEnemyDied;
+        GameEvents.OnGameStateChange -= OnGameStateChange;
+    }
+    IEnumerator EnemyDelaySpawn()
+    {
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            int rnd = Random.Range(0, enemyTypes.Length);
+            GameObject go = Instantiate(enemyTypes[rnd], spawnPoints[i].position, spawnPoints[i].rotation);
+            enemies.Add(go);
+            yield return new WaitForSeconds(2);
+        }
+    }
+    void OnGameStateChange(GameState _gameState)
+    {
+        switch (_gameState)
+        {
+            case GameState.Playing:
+                StartCoroutine(EnemyDelaySpawn());
+                break;
+            case GameState.Paused:
+            case GameState.GameOver:
+                StopCoroutine(EnemyDelaySpawn());
+                break;
+
+        }
+    }
 }

@@ -1,12 +1,17 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
-public class Singleton <T>:MonoBehaviour where T:MonoBehaviour
+public class Singleton : MonoBehaviour
+{
+    protected static GameManager _GM { get { return GameManager.INSTANCE; } }
+    protected static TargetManager _EM { get { return TargetManager.INSTANCE; } }
+    protected static UI_Manager _UI { get { return UI_Manager.INSTANCE; } }
+}
+public class Singleton <T>: Singleton where T: Singleton
 {
     public bool dontDestroy;
     private static T instance_;
-    public static T instance
+    public static T INSTANCE
     {
         get
         {
